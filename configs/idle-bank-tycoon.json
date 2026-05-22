@@ -1,0 +1,19 @@
+{
+  "name": "Idle Bank Tycoon",
+  "package_name": "com.idlebank.tycoon",
+  "tap_regions": {
+    "collect": { "x": 540, "y": 1600 },
+    "upgrade_1": { "x": 150, "y": 1800 },
+    "upgrade_2": { "x": 540, "y": 1800 },
+    "upgrade_3": { "x": 930, "y": 1800 }
+  },
+  "loop": {
+    "collect_interval_ms": 1500,
+    "upgrade_interval_ms": 8000,
+    "session_minutes": 45
+  },
+  "safety": {
+    "restart_every_minutes": 15,
+    "max_runtime_minutes": 60
+  }
+}

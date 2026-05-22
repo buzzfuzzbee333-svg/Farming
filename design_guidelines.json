@@ -1,0 +1,110 @@
+{
+  "theme": "dark",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) + Terminal/Retro-Futurism",
+  "domain_context": "Mobile control app (PWA wrapper format) for an Idle Game Automation Stack. Power user, developer tool.",
+  "typography": {
+    "primary_font": "JetBrains Mono",
+    "body_font": "IBM Plex Sans",
+    "code_font": "JetBrains Mono",
+    "hierarchy": {
+      "h1": "font-mono text-3xl font-bold tracking-tighter text-white",
+      "h2": "font-mono text-xl font-bold tracking-tight text-white",
+      "h3": "font-mono text-lg font-semibold text-white",
+      "body": "font-sans text-sm leading-relaxed text-zinc-300",
+      "stats_value": "font-mono text-3xl sm:text-4xl font-bold tracking-tighter text-white",
+      "stats_label": "font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-500",
+      "code_block": "font-mono text-xs text-green-400"
+    }
+  },
+  "colors": {
+    "background": "bg-zinc-950",
+    "surface_main": "bg-zinc-900",
+    "surface_secondary": "bg-[#0A0A0A]",
+    "border_subtle": "border-white/10",
+    "border_focus": "border-green-500/50",
+    "text": {
+      "primary": "text-zinc-50",
+      "secondary": "text-zinc-400",
+      "tertiary": "text-zinc-600"
+    },
+    "brand_cta": {
+      "bg": "bg-green-500",
+      "text": "text-black",
+      "hover": "hover:bg-green-400"
+    },
+    "status": {
+      "running": "bg-green-500/10 text-green-400 border-green-500/30",
+      "completed": "bg-blue-500/10 text-blue-400 border-blue-500/30",
+      "failed": "bg-red-500/10 text-red-400 border-red-500/30",
+      "aborted": "bg-zinc-500/10 text-zinc-400 border-zinc-500/30"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Density and precision. The Control Room Grid protocol. High data visibility.",
+    "app_container": "max-w-[480px] mx-auto min-h-screen bg-zinc-950 border-x border-white/10 shadow-2xl relative flex flex-col overflow-x-hidden",
+    "page_padding": "p-4 sm:p-6",
+    "element_spacing": "gap-4 sm:gap-6",
+    "border_radius": "rounded-sm (Strict 2px-4px max to maintain technical/terminal feel. Do not use large rounded corners)",
+    "nav_bar": "fixed bottom-0 w-full max-w-[480px] h-16 border-t border-white/10 bg-zinc-950/80 backdrop-blur-xl flex items-center justify-around pb-safe z-50"
+  },
+  "components": {
+    "cards": {
+      "style": "bg-zinc-900 border border-white/10 rounded-sm p-4",
+      "hover": "hover:border-zinc-500/50 transition-colors"
+    },
+    "buttons": {
+      "primary": "bg-green-500 text-black font-mono text-sm uppercase tracking-wider font-bold rounded-sm px-4 py-2 hover:bg-green-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]",
+      "secondary": "bg-zinc-800 text-white font-mono text-sm rounded-sm px-4 py-2 border border-white/10 hover:bg-zinc-700"
+    },
+    "inputs": {
+      "style": "bg-[#0A0A0A] border border-white/10 rounded-sm px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500/50 focus:ring-1 focus:ring-green-500/50 font-mono"
+    },
+    "badges": {
+      "style": "px-2 py-0.5 rounded-sm font-mono text-[10px] uppercase tracking-widest border"
+    },
+    "json_viewer": {
+      "style": "bg-[#050505] border border-white/10 rounded-sm p-3 font-mono text-xs overflow-auto text-green-400"
+    }
+  },
+  "motion_and_interactions": {
+    "hover": "Subtle border illuminations. No heavy transforms. Keep it feeling like a hardware interface.",
+    "loading": "ASCII-style loaders or blinking cursor ('_') animations to emphasize the terminal feel.",
+    "transitions": "Fast, crisp transitions (150ms). No slow fades."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "hero_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/52cb11d6-e8b8-4296-8b40-c8268b76bd49/images/e363656b7bc92e710529509a699652e2f515a5db5833da9be52acb97b93290de.png",
+        "description": "Abstract tech circuit background. Use behind the main dashboard summary block with high transparency (opacity-20)."
+      },
+      {
+        "category": "game_icon_placeholder",
+        "url": "https://static.prod-images.emergentagent.com/jobs/52cb11d6-e8b8-4296-8b40-c8268b76bd49/images/2cd368290a08f2c2fffa44c83216a32bc539e2537512632b26ed8cc069f2e92d.png",
+        "description": "Server cartridge icon. Use as a fallback thumbnail for Idle Games in the games list."
+      },
+      {
+        "category": "empty_state",
+        "url": "https://static.prod-images.emergentagent.com/jobs/52cb11d6-e8b8-4296-8b40-c8268b76bd49/images/8e43a67b822ead2efc09451172a3139cbdfb22c693586344e46565ee47a7fc28.png",
+        "description": "Sleeping robot illustration. Use for 'No Active Sessions' or 'No Games Added' empty states."
+      }
+    ],
+    "icons_library": "@phosphor-icons/react or lucide-react with standard straight/sharp lines."
+  },
+  "instructions_to_main_agent": [
+    "FRAMEWORK: The user asked for an 'Expo (React Native) mobile control app'. To simulate this in the web environment, wrap the entire application in a centered, mobile-sized container (max-w-[480px] min-h-screen) with a fixed bottom navigation bar.",
+    "AESTHETIC: This is a developer tool. It must look like a high-end CLI/Terminal UI. Heavy use of monospace fonts (JetBrains Mono) for numbers, labels, and titles.",
+    "COMPONENTS: Use Shadcn primitives but OVERRIDE their border-radii to 'rounded-sm' or 'rounded-none'. Strip away standard shadow styles and use 1px solid borders (border-white/10).",
+    "DASHBOARD: Feature a prominent 'Earnings' module using large monospace typography and the neon green accent. Show a dense, scrolling list of recent sessions.",
+    "DATA FORMATTING: Format configs as actual JSON blocks inside `<pre><code>` tags with the 'json_viewer' styles.",
+    "TESTING: Every clickable element, form input, and key data display MUST have a 'data-testid' attribute in kebab-case."
+  ],
+  "testing_requirements": [
+    "data-testid='nav-dashboard'",
+    "data-testid='nav-games'",
+    "data-testid='start-session-btn'",
+    "data-testid='game-card-{id}'",
+    "data-testid='config-viewer'",
+    "data-testid='milestone-item'"
+  ]
+}

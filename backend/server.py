@@ -42,6 +42,7 @@ class IdleGameCreate(BaseModel):
     base_payout_cents: int = 0
     est_minutes: int = 30
     config_json: Dict[str, Any]
+    automate_flow_json: Optional[Dict[str, Any]] = None
     is_active: bool = True
 
 
@@ -51,6 +52,7 @@ class IdleGameUpdate(BaseModel):
     base_payout_cents: Optional[int] = None
     est_minutes: Optional[int] = None
     config_json: Optional[Dict[str, Any]] = None
+    automate_flow_json: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 
@@ -62,6 +64,7 @@ class IdleGame(BaseModel):
     base_payout_cents: int
     est_minutes: int
     config_json: Dict[str, Any]
+    automate_flow_json: Optional[Dict[str, Any]] = None
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -457,6 +460,52 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+CRYPTO_MINER_FLOW = {
+    "name": "Crypto Miner Tycoon Automation",
+    "description": "Automated gameplay for Crypto Miner Tycoon using ADB tap loops, upgrade cycles, and timed session control.",
+    "version": 1,
+    "nodes": [
+        {"id": 1, "type": "variables_set", "name": "Load Config", "variables": {"pkg": "com.cryptominer.tycoon", "collect_x": 540, "collect_y": 1650, "up1_x": 150, "up1_y": 1800, "up2_x": 540, "up2_y": 1800, "up3_x": 930, "up3_y": 1800, "collect_ms": 1500, "upgrade_ms": 9000, "restart_minutes": 20, "session_minutes": 60}},
+        {"id": 2, "type": "shell_command", "name": "Launch Game", "command": "adb shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1", "wait": True},
+        {"id": 3, "type": "delay", "name": "Wait for Game Load", "delay_ms": 15000},
+        {"id": 4, "type": "loop", "name": "Main Automation Loop", "iterations": -1},
+        {"id": 5, "type": "shell_command", "name": "Tap Collect", "command": "adb shell input tap ${collect_x} ${collect_y}", "wait": False},
+        {"id": 6, "type": "delay", "name": "Collect Delay", "delay_ms": "${collect_ms}"},
+        {"id": 7, "type": "expression", "name": "Check Upgrade Timer", "expression": "now() - flow.last_upgrade >= ${upgrade_ms}"},
+        {"id": 8, "type": "shell_command", "name": "Tap Upgrade 1", "command": "adb shell input tap ${up1_x} ${up1_y}", "wait": False},
+        {"id": 9, "type": "shell_command", "name": "Tap Upgrade 2", "command": "adb shell input tap ${up2_x} ${up2_y}", "wait": False},
+        {"id": 10, "type": "shell_command", "name": "Tap Upgrade 3", "command": "adb shell input tap ${up3_x} ${up3_y}", "wait": False},
+        {"id": 11, "type": "variables_set", "name": "Reset Upgrade Timer", "variables": {"last_upgrade": "now()"}},
+        {"id": 12, "type": "expression", "name": "Check Restart Timer", "expression": "now() - flow.last_restart >= (${restart_minutes} * 60000)"},
+        {"id": 13, "type": "shell_command", "name": "Force Stop Game", "command": "adb shell am force-stop ${pkg}", "wait": True},
+        {"id": 14, "type": "shell_command", "name": "Relaunch Game", "command": "adb shell monkey -p ${pkg} -c android.intent.category.LAUNCHER 1", "wait": True},
+        {"id": 15, "type": "variables_set", "name": "Reset Restart Timer", "variables": {"last_restart": "now()"}},
+        {"id": 16, "type": "expression", "name": "Check Session End", "expression": "now() - flow.start_time >= (${session_minutes} * 60000)"},
+        {"id": 17, "type": "flow_end", "name": "End Session"},
+        {"id": 18, "type": "variables_set", "name": "Init Timers", "variables": {"start_time": "now()", "last_upgrade": "now()", "last_restart": "now()"}},
+    ],
+    "connections": [
+        {"from": 1, "to": 2}, {"from": 2, "to": 3}, {"from": 3, "to": 18}, {"from": 18, "to": 4},
+        {"from": 4, "to": 5}, {"from": 5, "to": 6}, {"from": 6, "to": 7},
+        {"from": 7, "to_true": 8, "to_false": 12},
+        {"from": 8, "to": 9}, {"from": 9, "to": 10}, {"from": 10, "to": 11}, {"from": 11, "to": 12},
+        {"from": 12, "to_true": 13, "to_false": 16},
+        {"from": 13, "to": 14}, {"from": 14, "to": 15}, {"from": 15, "to": 16},
+        {"from": 16, "to_true": 17, "to_false": 4},
+    ],
+}
+
+
+def _flow_for_game(pkg: str, name: str) -> Dict[str, Any]:
+    """Generate an Automate-style flow for any game, swapping package + coords."""
+    import copy
+    flow = copy.deepcopy(CRYPTO_MINER_FLOW)
+    flow["name"] = f"{name} Automation"
+    flow["description"] = f"Automated gameplay for {name} using ADB tap loops, upgrade cycles, and timed session control."
+    flow["nodes"][0]["variables"]["pkg"] = pkg
+    return flow
+
+
 @app.on_event("startup")
 async def on_startup():
     # Auto-seed on first boot
@@ -464,6 +513,36 @@ async def on_startup():
     if existing == 0:
         logger.info("No games found. Auto-seeding default games...")
         await seed_data(force=False)
+
+    # Backfill automate_flow_json for any existing game that lacks one
+    async for g in db.idle_games.find({"automate_flow_json": {"$in": [None, {}]}}, {"_id": 0}):
+        if g["package_name"] == "com.cryptominer.tycoon":
+            flow = CRYPTO_MINER_FLOW
+        else:
+            flow = _flow_for_game(g["package_name"], g["name"])
+            # tweak with the game's actual tap regions if available
+            taps = g.get("config_json", {}).get("tap_regions", {})
+            loop_cfg = g.get("config_json", {}).get("loop", {})
+            safety = g.get("config_json", {}).get("safety", {})
+            v = flow["nodes"][0]["variables"]
+            if "collect" in taps:
+                v["collect_x"], v["collect_y"] = taps["collect"]["x"], taps["collect"]["y"]
+            if "upgrade_1" in taps:
+                v["up1_x"], v["up1_y"] = taps["upgrade_1"]["x"], taps["upgrade_1"]["y"]
+            if "upgrade_2" in taps:
+                v["up2_x"], v["up2_y"] = taps["upgrade_2"]["x"], taps["upgrade_2"]["y"]
+            if "upgrade_3" in taps:
+                v["up3_x"], v["up3_y"] = taps["upgrade_3"]["x"], taps["upgrade_3"]["y"]
+            if "collect_interval_ms" in loop_cfg:
+                v["collect_ms"] = loop_cfg["collect_interval_ms"]
+            if "upgrade_interval_ms" in loop_cfg:
+                v["upgrade_ms"] = loop_cfg["upgrade_interval_ms"]
+            if "session_minutes" in loop_cfg:
+                v["session_minutes"] = loop_cfg["session_minutes"]
+            if "restart_every_minutes" in safety:
+                v["restart_minutes"] = safety["restart_every_minutes"]
+        await db.idle_games.update_one({"id": g["id"]}, {"$set": {"automate_flow_json": flow}})
+        logger.info(f"Backfilled automate_flow_json for {g['name']}")
 
 
 @app.on_event("shutdown")

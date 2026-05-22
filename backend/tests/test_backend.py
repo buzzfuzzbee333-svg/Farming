@@ -191,6 +191,128 @@ def test_milestone_crud(client, games):
     assert r.status_code == 200
 
 
+# ===== Iteration 2: automate_flow_json =====
+def test_all_games_have_automate_flow_json(games):
+    """Every game returned by /api/games must include an automate_flow_json object."""
+    assert len(games) >= 2
+    for g in games:
+        assert "automate_flow_json" in g, f"missing automate_flow_json on {g['name']}"
+        flow = g["automate_flow_json"]
+        assert flow is not None and isinstance(flow, dict), f"flow is null on {g['name']}"
+        assert "nodes" in flow and isinstance(flow["nodes"], list)
+        assert "connections" in flow and isinstance(flow["connections"], list)
+        assert "name" in flow
+
+
+def test_crypto_miner_flow_has_18_nodes_and_correct_pkg(games):
+    """Crypto Miner Tycoon flow: 18 nodes, pkg=com.cryptominer.tycoon."""
+    cm = next((g for g in games if g["package_name"] == "com.cryptominer.tycoon"), None)
+    assert cm is not None, "Crypto Miner Tycoon not in seed"
+    flow = cm["automate_flow_json"]
+    assert len(flow["nodes"]) == 18, f"expected 18 nodes got {len(flow['nodes'])}"
+    # Node 1 = variables_set 'Load Config' must carry the pkg
+    load_cfg = flow["nodes"][0]
+    assert load_cfg["type"] == "variables_set"
+    assert load_cfg["variables"]["pkg"] == "com.cryptominer.tycoon"
+    assert load_cfg["variables"]["collect_x"] == 540
+    assert load_cfg["variables"]["collect_y"] == 1650
+
+
+def test_idle_bank_flow_templated_with_own_pkg_and_taps(games):
+    """Idle Bank Tycoon must have been templated: same shape but pkg + tap coords swapped."""
+    ib = next((g for g in games if g["package_name"] == "com.idlebank.tycoon"), None)
+    assert ib is not None
+    flow = ib["automate_flow_json"]
+    assert flow is not None
+    assert len(flow["nodes"]) == 18
+    v = flow["nodes"][0]["variables"]
+    assert v["pkg"] == "com.idlebank.tycoon"
+    # Bank's tap_regions.collect = (540, 1600) from config_json
+    assert v["collect_x"] == 540
+    assert v["collect_y"] == 1600
+    # restart_minutes from safety.restart_every_minutes = 15
+    assert v["restart_minutes"] == 15
+    assert v["session_minutes"] == 45
+    # flow name should be game-specific
+    assert "Idle Bank Tycoon" in flow["name"]
+
+
+def test_create_game_with_automate_flow_json_roundtrip(client):
+    """POST a game with automate_flow_json → GET it back → must be preserved verbatim."""
+    custom_flow = {
+        "name": "TEST_Flow",
+        "description": "test flow",
+        "version": 1,
+        "nodes": [
+            {"id": 1, "type": "variables_set", "variables": {"pkg": "com.test.flow"}},
+            {"id": 2, "type": "shell_command", "command": "echo hi"},
+        ],
+        "connections": [{"from": 1, "to": 2}],
+    }
+    payload = {
+        "name": "TEST_FlowGame",
+        "package_name": "com.test.flow",
+        "base_payout_cents": 0,
+        "est_minutes": 5,
+        "config_json": {"tap_regions": {}, "loop": {}, "safety": {}},
+        "automate_flow_json": custom_flow,
+        "is_active": True,
+    }
+    r = client.post(f"{API}/games", json=payload)
+    assert r.status_code == 200, r.text
+    gid = r.json()["id"]
+    assert r.json()["automate_flow_json"] == custom_flow
+
+    # Verify GET persists it
+    r = client.get(f"{API}/games/{gid}")
+    assert r.status_code == 200
+    assert r.json()["automate_flow_json"] == custom_flow
+
+    # cleanup
+    client.delete(f"{API}/games/{gid}")
+
+
+def test_create_game_without_automate_flow_json_is_null(client):
+    """Optional field: POST without flow should yield null (then backfill won't run mid-test)."""
+    payload = {
+        "name": "TEST_NoFlowGame",
+        "package_name": "com.test.noflow",
+        "base_payout_cents": 0,
+        "est_minutes": 5,
+        "config_json": {"tap_regions": {}, "loop": {}, "safety": {}},
+        "is_active": True,
+    }
+    r = client.post(f"{API}/games", json=payload)
+    assert r.status_code == 200
+    gid = r.json()["id"]
+    assert r.json().get("automate_flow_json") is None
+    client.delete(f"{API}/games/{gid}")
+
+
+def test_patch_game_automate_flow_json(client):
+    """PATCH /games/{id} must be able to update automate_flow_json."""
+    create = client.post(f"{API}/games", json={
+        "name": "TEST_PatchFlow",
+        "package_name": "com.test.patchflow",
+        "base_payout_cents": 0,
+        "est_minutes": 5,
+        "config_json": {"tap_regions": {}, "loop": {}, "safety": {}},
+        "is_active": True,
+    })
+    gid = create.json()["id"]
+
+    new_flow = {"name": "Updated", "nodes": [{"id": 1, "type": "delay"}], "connections": []}
+    r = client.patch(f"{API}/games/{gid}", json={"automate_flow_json": new_flow})
+    assert r.status_code == 200, r.text
+    assert r.json()["automate_flow_json"] == new_flow
+
+    # Verify via GET
+    r = client.get(f"{API}/games/{gid}")
+    assert r.json()["automate_flow_json"] == new_flow
+
+    client.delete(f"{API}/games/{gid}")
+
+
 # ===== Dashboard aggregation =====
 def test_dashboard_aggregation(client, games):
     gid = games[0]["id"]

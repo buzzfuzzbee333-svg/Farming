@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 2 (automate_flow_json) fully tested - backend + frontend. Pytest: 18/18 passing (12 regression from iter-1 + 6 new for automate_flow_json). Frontend Game Detail and New Game flows all behave correctly on 390x844 mobile viewport.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "global", "issue": "Pre-existing 'props.pointerEvents is deprecated. Use style.pointerEvents' warning (carried over from iteration 1, non-blocking)."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "backend_tests_added": [
+    "test_all_games_have_automate_flow_json: every /api/games entry contains a non-null flow with nodes+connections",
+    "test_crypto_miner_flow_has_18_nodes_and_correct_pkg: 18 nodes; node[0].variables.pkg=com.cryptominer.tycoon, collect_x=540, collect_y=1650",
+    "test_idle_bank_flow_templated_with_own_pkg_and_taps: Idle Bank's flow has pkg=com.idlebank.tycoon, collect=(540,1600), restart_minutes=15, session_minutes=45; name contains 'Idle Bank Tycoon'",
+    "test_create_game_with_automate_flow_json_roundtrip: POST then GET preserves the flow object verbatim",
+    "test_create_game_without_automate_flow_json_is_null: optional field omitted -> stored as null",
+    "test_patch_game_automate_flow_json: PATCH updates the field; GET reflects the new flow"
+  ],
+  "frontend_flows_verified": [
+    "Game Detail (Crypto Miner Tycoon): // AUTOMATE_FLOW.JSON section renders below // CONFIG.JSON",
+    "Flow starts COLLAPSED: summary 'Crypto Miner Tycoon Automation \u00b7 18 nodes' visible, flow-viewer absent",
+    "SHOW button (testID=toggle-flow-btn) expands -> flow-viewer present, label switches to HIDE",
+    "COPY button (testID=copy-flow-btn) copies full flow JSON to clipboard (4219 chars, 18 nodes, name='Crypto Miner Tycoon Automation'); label switches to COPIED then reverts to COPY after ~1.5s",
+    "HIDE collapses back: flow-viewer removed, label switches back to SHOW",
+    "New Game form: textarea // AUTOMATE_FLOW_JSON (optional) with testID=input-flow renders",
+    "New Game with invalid JSON in flow: save blocked (stays on form, Alert raised)",
+    "New Game with valid JSON in flow: persists correctly (verified via /api/games)"
+  ],
+  "action_items": [
+    "No new bugs found. Iteration-1 action items still open (testIDs partially added; pointerEvents warning unresolved; consider lifespan handler instead of @app.on_event)."
+  ],
+  "critical_code_review_comments": [
+    "Backfill in @app.on_event('startup') runs on every restart for games whose flow is None or {} - correct & idempotent for current 2 seeds, but consider also matching missing-key documents via {'automate_flow_json': {'$exists': False}} for completeness (currently OK because IdleGame defaults the field).",
+    "_flow_for_game uses deepcopy(CRYPTO_MINER_FLOW) and overwrites name/description/pkg - good. But the description string still mentions 'Crypto Miner Tycoon-style' implicitly via the f-string; verified Idle Bank's description correctly says 'Automated gameplay for Idle Bank Tycoon ...'.",
+    "Models updated correctly: IdleGameCreate, IdleGameUpdate, IdleGame all have Optional[Dict[str, Any]] automate_flow_json. Validation accepts arbitrary dict (intentional - any Automate flow shape) which matches frontend free-form textarea.",
+    "/game/new uses router.back() after save - if user deep-links into /game/new (no history) navigation fails with 'GO_BACK was not handled'. The game IS saved; only the post-save navigation breaks. Minor: consider router.replace('/games') as fallback."
+  ],
+  "updated_files": ["/app/backend/tests/test_backend.py (added 6 iter-2 tests)"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "None. Tests create/delete TEST_-prefixed games and clean up. The iter-2 frontend test created TEST_UI_Game_Invalid which was deleted at the end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter-2 added automate_flow_json field. Backend auto-backfills on startup for any existing game with None/{} flow. Frontend uses expo-clipboard@8.0.8 (Clipboard.setStringAsync). Game detail flow viewer has testIDs: copy-flow-btn, toggle-flow-btn, flow-viewer (only when expanded). New Game form has input-flow textarea. /game/new uses router.back() which fails when deep-linked - data still saves, only navigation breaks."
+}

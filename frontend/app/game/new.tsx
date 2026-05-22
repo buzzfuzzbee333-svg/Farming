@@ -41,6 +41,7 @@ export default function NewGame() {
   const [estMinutes, setEstMinutes] = useState("45");
   const [payoutCents, setPayoutCents] = useState("0");
   const [configText, setConfigText] = useState(DEFAULT_CONFIG);
+  const [flowText, setFlowText] = useState("");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -52,8 +53,17 @@ export default function NewGame() {
     try {
       parsed = JSON.parse(configText);
     } catch (e: any) {
-      Alert.alert("Invalid JSON", e.message);
+      Alert.alert("Invalid JSON", `config_json: ${e.message}`);
       return;
+    }
+    let parsedFlow: any = null;
+    if (flowText.trim()) {
+      try {
+        parsedFlow = JSON.parse(flowText);
+      } catch (e: any) {
+        Alert.alert("Invalid JSON", `automate_flow_json: ${e.message}`);
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -63,6 +73,7 @@ export default function NewGame() {
         est_minutes: parseInt(estMinutes || "0", 10) || 0,
         base_payout_cents: parseInt(payoutCents || "0", 10) || 0,
         config_json: parsed,
+        automate_flow_json: parsedFlow,
         is_active: true,
       } as any);
       router.back();
@@ -138,6 +149,21 @@ export default function NewGame() {
           autoCorrect={false}
           style={[styles.input, styles.codeInput]}
           testID="input-config"
+        />
+
+        <SectionLabel style={{ marginTop: 16 }}>
+          // AUTOMATE_FLOW_JSON (optional)
+        </SectionLabel>
+        <TextInput
+          value={flowText}
+          onChangeText={setFlowText}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder='Paste your Automate flow JSON here (or leave empty)'
+          placeholderTextColor={colors.textTertiary}
+          style={[styles.input, styles.codeInput, { minHeight: 200 }]}
+          testID="input-flow"
         />
 
         <PrimaryButton

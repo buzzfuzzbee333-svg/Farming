@@ -34,6 +34,7 @@ export type IdleGame = {
   base_payout_cents: number;
   est_minutes: number;
   config_json: GameConfig;
+  automate_flow_json?: Record<string, any> | null;
   is_active: boolean;
   created_at: string;
 };

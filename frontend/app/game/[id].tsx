@@ -15,6 +15,7 @@ import {
   Stack,
 } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { api, IdleGame, IdleMilestone } from "@/src/lib/api";
 import {
   colors,
@@ -35,6 +36,8 @@ export default function GameDetail() {
   const [game, setGame] = useState<IdleGame | null>(null);
   const [milestones, setMilestones] = useState<IdleMilestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [flowExpanded, setFlowExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -83,6 +86,19 @@ export default function GameDetail() {
   const toggleMilestone = async (m: IdleMilestone) => {
     const updated = await api.updateMilestone(m.id, { completed: !m.completed });
     setMilestones((prev) => prev.map((x) => (x.id === m.id ? updated : x)));
+  };
+
+  const copyFlow = async () => {
+    if (!game?.automate_flow_json) return;
+    try {
+      await Clipboard.setStringAsync(
+        JSON.stringify(game.automate_flow_json, null, 2)
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e: any) {
+      Alert.alert("Copy failed", e.message);
+    }
   };
 
   if (loading || !game) {
@@ -195,6 +211,81 @@ export default function GameDetail() {
             </Text>
           </ScrollView>
         </View>
+
+        {/* Automate Flow */}
+        <View style={styles.flowHeader}>
+          <SectionLabel style={{ marginBottom: 0 }}>
+            // AUTOMATE_FLOW.JSON
+          </SectionLabel>
+          {game.automate_flow_json ? (
+            <View style={styles.flowActions}>
+              <TouchableOpacity
+                onPress={copyFlow}
+                style={[
+                  styles.copyBtn,
+                  copied && {
+                    backgroundColor: colors.accentSoft,
+                    borderColor: colors.accentBorder,
+                  },
+                ]}
+                testID="copy-flow-btn"
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={copied ? "checkmark" : "copy-outline"}
+                  size={12}
+                  color={copied ? colors.accent : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.copyBtnText,
+                    copied && { color: colors.accent },
+                  ]}
+                >
+                  {copied ? "COPIED" : "COPY"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setFlowExpanded((v) => !v)}
+                style={styles.copyBtn}
+                testID="toggle-flow-btn"
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={flowExpanded ? "chevron-up" : "chevron-down"}
+                  size={12}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.copyBtnText}>
+                  {flowExpanded ? "HIDE" : "SHOW"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+        {game.automate_flow_json ? (
+          flowExpanded ? (
+            <View style={styles.codeBlock} testID="flow-viewer">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Text selectable style={styles.codeText}>
+                  {JSON.stringify(game.automate_flow_json, null, 2)}
+                </Text>
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={[styles.codeBlock, styles.flowCollapsed]}>
+              <Text style={styles.flowSummary} numberOfLines={1}>
+                {(game.automate_flow_json as any).name || "Automate flow"} ·{" "}
+                {((game.automate_flow_json as any).nodes || []).length} nodes
+              </Text>
+              <Text style={styles.flowHint}>Tap SHOW to expand · COPY to clipboard</Text>
+            </View>
+          )
+        ) : (
+          <View style={styles.codeBlock}>
+            <Text style={styles.flowHint}>— no flow configured</Text>
+          </View>
+        )}
 
         {/* Milestones */}
         <View style={styles.milestoneHeader}>
@@ -347,6 +438,45 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 11,
     lineHeight: 18,
+  },
+  flowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  flowActions: { flexDirection: "row", gap: 6 },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 3,
+  },
+  copyBtnText: {
+    fontFamily: mono,
+    color: colors.textSecondary,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    fontWeight: "700",
+  },
+  flowCollapsed: { paddingVertical: 14 },
+  flowSummary: {
+    fontFamily: mono,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  flowHint: {
+    fontFamily: mono,
+    color: colors.textTertiary,
+    fontSize: 10,
+    marginTop: 6,
   },
   milestoneHeader: { marginTop: 24, marginBottom: 8 },
   milestone: { flexDirection: "row", gap: 12, marginBottom: 8 },

@@ -1,0 +1,2 @@
+# Farming
+Idle game automation

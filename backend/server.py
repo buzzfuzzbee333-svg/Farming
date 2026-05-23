@@ -210,6 +210,56 @@ async def create_session(payload: IdleSessionCreate):
     return session
 
 
+# --- Convenience endpoints for Automate / Termux / n8n integration ---
+
+class StartByPkgPayload(BaseModel):
+    package_name: str
+    session_minutes: int = 30
+    notes: Optional[str] = None
+
+
+@api_router.post("/sessions/start_by_pkg", response_model=IdleSession)
+async def start_session_by_pkg(payload: StartByPkgPayload):
+    """Start a session by package_name (avoids needing the game UUID in Automate)."""
+    game = await db.idle_games.find_one({"package_name": payload.package_name}, {"_id": 0})
+    if not game:
+        raise HTTPException(404, f"No game with package_name={payload.package_name}")
+    session = IdleSession(
+        game_id=game["id"],
+        game_name=game["name"],
+        session_minutes=payload.session_minutes,
+        notes=payload.notes,
+    )
+    await db.idle_sessions.insert_one(session.dict())
+    return session
+
+
+class CompletePayload(BaseModel):
+    earned_cents: int = 0
+    notes: Optional[str] = None
+    status: str = "completed"  # completed | failed | aborted
+
+
+@api_router.post("/sessions/{session_id}/complete", response_model=IdleSession)
+async def complete_session(session_id: str, payload: CompletePayload):
+    """One-shot session finalize for Automate's HTTP callback at flow end."""
+    if payload.status not in {"completed", "failed", "aborted"}:
+        raise HTTPException(400, "status must be completed|failed|aborted")
+    doc = await db.idle_sessions.find_one({"id": session_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Session not found")
+    updates = {
+        "status": payload.status,
+        "earned_cents": payload.earned_cents,
+        "ended_at": datetime.now(timezone.utc),
+    }
+    if payload.notes:
+        updates["notes"] = payload.notes
+    await db.idle_sessions.update_one({"id": session_id}, {"$set": updates})
+    doc = await db.idle_sessions.find_one({"id": session_id}, {"_id": 0})
+    return IdleSession(**doc)
+
+
 @api_router.get("/sessions", response_model=List[IdleSession])
 async def list_sessions(game_id: Optional[str] = None, status: Optional[str] = None, limit: int = 100):
     query: dict = {}
